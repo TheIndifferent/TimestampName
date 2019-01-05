@@ -27,7 +27,7 @@ func (in *fileSectionReader) Name() string {
 
 func newFileReader(file *os.File, name string) reader {
 	stat, err := file.Stat()
-	log.fatalityCheck(err, "failed to stat the file: %s, %v", name, err)
+	CatchFile(err, name, "failed to stat")
 	return &fileSectionReader{io.NewSectionReader(file, 0, stat.Size()), name}
 }
 

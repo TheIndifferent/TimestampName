@@ -10,6 +10,10 @@ import (
 	"io"
 )
 
+// following documents were used to implement this parser:
+// http://l.web.umkc.edu/lizhu/teaching/2016sp.video-communication/ref/mp4.pdf
+// https://mpeg.chiariglione.org/standards/mpeg-4/iso-base-media-file-format
+
 func _quicktimeSearchBox(in reader, matchName func(string) bool, matchUuid func(string) bool) reader {
 	var err error
 	var offset int64              // offset in provided reader
@@ -18,20 +22,22 @@ func _quicktimeSearchBox(in reader, matchName func(string) bool, matchUuid func(
 		var boxBodyLength int64 // length of the box body
 		var boxLength uint32
 		err = binary.Read(in, binary.BigEndian, &boxLength)
-		log.fatalityCheck(err, "failed to read box length: %v", err)
+		CatchFile(err, in.Name(), "failed to read box length")
 		_, err = io.ReadFull(in, boxType)
-		log.fatalityCheck(err, "failed to read box type: %v")
+		CatchFile(err, in.Name(), "failed to read box type")
 		// checking for large box:
 		if boxLength == 1 {
 			var boxLargeLength uint64
 			err = binary.Read(in, binary.BigEndian, &boxLargeLength)
-			log.fatalityCheck(err, "failed to read box large length: %v", err)
+			CatchFile(err, in.Name(), "failed to read box large length")
+			// box lenght includes header, have to make adjustments:
 			// 4 bytes for box length
 			// 4 bytes for box type
 			// 8 bytes for box large length
 			boxBodyLength = int64(boxLargeLength - 16)
 			offset += 16
 		} else {
+			// box lenght includes header, have to make adjustments:
 			// 4 bytes for box length
 			// 4 bytes for box type
 			boxBodyLength = int64(boxLength - 8)
@@ -43,7 +49,7 @@ func _quicktimeSearchBox(in reader, matchName func(string) bool, matchUuid func(
 			}
 			var uuid = make([]byte, 16)
 			_, err = io.ReadFull(in, uuid)
-			log.fatalityCheck(err, "failed to read box uuid: %s, %v", in.Name(), err)
+			CatchFile(err, in.Name(), "failed to read box uuid")
 			// another 16 bytes read:
 			boxBodyLength -= 16
 			offset += 16
@@ -57,7 +63,7 @@ func _quicktimeSearchBox(in reader, matchName func(string) bool, matchUuid func(
 			break // reached the file end
 		}
 		_, err = in.Seek(offset, 0)
-		log.fatalityCheck(err, "failed to seek till next box: %s, %v", in.Name(), err)
+		CatchFile(err, in.Name(), "failed to seek till next box")
 	}
 	return nil
 }
@@ -88,42 +94,4 @@ func quicktimeSearchBox(in reader, boxTypeNeeded string) (reader, error) {
 		return nil, errors.New("failed to find a box with type '" + boxTypeNeeded + "'")
 	}
 	return box, nil
-	// var err error
-	// var offset int64              // offset in provided reader
-	// var boxType = make([]byte, 4) // 4 bytes box type
-	// for {
-	// 	var boxBodyLength int64 // length of the box body
-	// 	var boxLength uint32
-	// 	err = binary.Read(in, binary.BigEndian, &boxLength)
-	// 	log.fatalityCheck(err, "failed to read box length: %v", err)
-	// 	_, err = io.ReadFull(in, boxType)
-	// 	log.fatalityCheck(err, "failed to read box type: %v")
-	// 	// checking for large box:
-	// 	if boxLength == 1 {
-	// 		var boxLargeLength uint64
-	// 		err = binary.Read(in, binary.BigEndian, &boxLargeLength)
-	// 		log.fatalityCheck(err, "failed to read box large length: %v", err)
-	// 		// 4 bytes for box length
-	// 		// 4 bytes for box type
-	// 		// 8 bytes for box large length
-	// 		boxBodyLength = int64(boxLargeLength - 16)
-	// 		offset += 16
-	// 	} else {
-	// 		// 4 bytes for box length
-	// 		// 4 bytes for box type
-	// 		boxBodyLength = int64(boxLength - 8)
-	// 		offset += 8
-	// 	}
-	// 	if string(boxType) == boxTypeNeeded {
-	// 		return newReader(in, offset, boxBodyLength), nil
-	// 	}
-
-	// 	offset += boxBodyLength
-	// 	if offset >= in.Size() {
-	// 		break // reached the file end
-	// 	}
-	// 	_, err = in.Seek(offset, 0)
-	// 	log.fatalityCheck(err, "failed to seek till next box: %s, %v", in.Name(), err)
-	// }
-	// return nil, nil
 }

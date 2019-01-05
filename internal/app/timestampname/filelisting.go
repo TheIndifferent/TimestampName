@@ -29,7 +29,7 @@ var supportedFiles = createSupportedFilesMap()
 
 func listFiles(targetFolder string) []inputFile {
 	files, err := ioutil.ReadDir(targetFolder)
-	log.fatalityCheck(err, "error reading contents of current folder %s: %v", targetFolder, err)
+	Catch(err, "cannot read current folder")
 
 	var inputFiles []inputFile
 	for _, file := range files {

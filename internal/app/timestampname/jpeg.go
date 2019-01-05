@@ -7,7 +7,7 @@ import (
 	"encoding/binary"
 )
 
-// following resources were used to construct this parser:
+// following resources were used to implement this parser:
 // https://www.media.mit.edu/pia/Research/deepview/exif.html
 // https://www.fileformat.info/format/jpeg/egff.htm
 // http://vip.sugovica.hu/Sardi/kepnezo/JPEG%20File%20Layout%20and%20Format.htm
@@ -27,7 +27,7 @@ func jpegExtractMetadataCreationTimestamp(in reader) string {
 	var jpegSoi uint16
 	binary.Read(in, binary.BigEndian, &jpegSoi)
 	if jpegSoi != jpegSoiExpected {
-		log.fatalityDo("unexpected header for file: %s", in.Name())
+		Raise(in.Name(), "unexpected header")
 	}
 	// scrolling through fields until we find APP1:
 	var offset int64 = 2 // 2 bytes SOI
@@ -43,7 +43,7 @@ func jpegExtractMetadataCreationTimestamp(in reader) string {
 			binary.Read(in, binary.BigEndian, &exifHeader)
 			binary.Read(in, binary.BigEndian, &exifHeaderSuffix)
 			if exifHeader != exifHeaderExpected || exifHeaderSuffix != exifHeaderSuffixExpected {
-				log.fatalityDo("JPEG APP1 field does not have valid Exif header: %s", in.Name())
+				Raise(in.Name(), "JPEG APP1 field does not have valid Exif header")
 			}
 			// body is a valid TIFF,
 			// offset increments:

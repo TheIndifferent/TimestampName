@@ -18,7 +18,7 @@ func tiffAppendDateValueOffsetsFromIFD(in reader, bo binary.ByteOrder, dateTagOf
 	// 2-byte count of the number of directory entries (i.e., the number of fields)
 	var fields uint16
 	err := binary.Read(in, bo, &fields)
-	log.fatalityCheck(err, "failed to read number of IFD entries: %s, %v", in.Name(), err)
+	CatchFile(err, in.Name(), "failed to read number of IFD entries")
 
 	// EXIF IFD will be needed after parsing all current IFDs:
 	var exifOffset uint32
@@ -27,32 +27,32 @@ func tiffAppendDateValueOffsetsFromIFD(in reader, bo binary.ByteOrder, dateTagOf
 		// Bytes 0-1 The Tag that identifies the field
 		var fieldTag uint16
 		err := binary.Read(in, bo, &fieldTag)
-		log.fatalityCheck(err, "failed to read IFD tag: %s, %v", in.Name(), err)
+		CatchFile(err, in.Name(), "failed to read IFD tag")
 
 		// Bytes 2-3 The field Type
 		var fieldType uint16
 		err = binary.Read(in, bo, &fieldType)
-		log.fatalityCheck(err, "failed to read IFD type: %s, %v", in.Name(), err)
+		CatchFile(err, in.Name(), "failed to read IFD type")
 
 		// Bytes 4-7 The number of values, Count of the indicated Type
 		var fieldCount uint32
 		err = binary.Read(in, bo, &fieldCount)
-		log.fatalityCheck(err, "failed to read IFD count: %s, %v", in.Name(), err)
+		CatchFile(err, in.Name(), "failed to read IFD count")
 
 		// Bytes 8-11 The Value Offset, the file offset (in bytes) of the Value for the field
 		var fieldValueOffset uint32
 		err = binary.Read(in, bo, &fieldValueOffset)
-		log.fatalityCheck(err, "failed to read IFD value offset: %s, %v", in.Name(), err)
+		CatchFile(err, in.Name(), "failed to read IFD value offset")
 
 		// 0x0132: DateTime
 		// 0x9003: DateTimeOriginal
 		// 0x9004: DateTimeDigitized
 		if fieldTag == 0x0132 || fieldTag == 0x9003 || fieldTag == 0x9004 {
 			if fieldType != 2 {
-				log.fatalityDo("expected tag has unexpected type in file %s: %d == %d", in.Name(), fieldTag, fieldType)
+				RaiseFmtFile(in.Name(), "expected tag has unexpected type: %d == %d", fieldTag, fieldType)
 			}
 			if fieldCount != 20 {
-				log.fatalityDo("expected tag has unexpected size in file %s: %d == %d", in.Name(), fieldTag, fieldCount)
+				RaiseFmtFile(in.Name(), "expected tag has unexpected size: %d == %d", fieldTag, fieldCount)
 			}
 			dateTagOffsets = append(dateTagOffsets, fieldValueOffset)
 		}
@@ -60,10 +60,10 @@ func tiffAppendDateValueOffsetsFromIFD(in reader, bo binary.ByteOrder, dateTagOf
 		// 0x8769: ExifIFDPointer
 		if fieldTag == 0x8769 {
 			if fieldType != 4 {
-				log.fatalityDo("EXIF pointer tag has unexpected type in file %s: %d == %d", in.Name(), fieldTag, fieldType)
+				RaiseFmtFile(in.Name(), "EXIF pointer tag has unexpected type: %d == %d", fieldTag, fieldType)
 			}
 			if fieldCount != 1 {
-				log.fatalityDo("EXIF pointer tag has unexpected size in file %s: %d == %d", in.Name(), fieldTag, fieldCount)
+				RaiseFmtFile(in.Name(), "EXIF pointer tag has unexpected size: %d == %d", fieldTag, fieldCount)
 			}
 			exifOffset = fieldValueOffset
 		}
@@ -80,7 +80,7 @@ func tiffExtractMetadataCreationTimestamp(in reader, fileStartOffset int64) stri
 	var tiffEndianess uint16
 	// smart thing about specification, we can supplly any endianess:
 	err := binary.Read(in, binary.LittleEndian, &tiffEndianess)
-	log.fatalityCheck(err, "failed to read file header: %s, %v", in.Name(), err)
+	CatchFile(err, in.Name(), "failed to read file header")
 
 	// In the “II” format, byte order is always from the least significant byte to the most
 	// significant byte, for both 16-bit and 32-bit integers.
@@ -95,22 +95,22 @@ func tiffExtractMetadataCreationTimestamp(in reader, fileStartOffset int64) stri
 	case tiffEndianessLittle:
 		bo = binary.LittleEndian
 	default:
-		log.fatalityDo("invalid TIFF file header for file %s: %v", in.Name(), tiffEndianess)
+		RaiseFmtFile(in.Name(), "invalid TIFF file header: %d", tiffEndianess)
 	}
 
 	// Bytes 2-3 An arbitrary but carefully chosen number (42)
 	// that further identifies the file as a TIFF file.
 	var tiffMagic uint16
 	err = binary.Read(in, bo, &tiffMagic)
-	log.fatalityCheck(err, "failed to read TIFF magic number: %s, %v", in.Name(), err)
+	CatchFile(err, in.Name(), "failed to read TIFF magic number")
 	if tiffMagic != 42 {
-		log.fatalityDo("invalid TIFF magic number %s: %v", in.Name(), tiffMagic)
+		RaiseFmtFile(in.Name(), "invalid TIFF magic number: %d", tiffMagic)
 	}
 
 	// Bytes 4-7 The offset (in bytes) of the first IFD.
 	var ifdOffset uint32
 	err = binary.Read(in, bo, &ifdOffset)
-	log.fatalityCheck(err, "failed to read IFD offset: %s, %v", in.Name(), err)
+	CatchFile(err, in.Name(), "failed to read IFD offset")
 
 	// offsets for date tags we are looking for:
 	var dateTagOffsets []uint32
@@ -122,18 +122,18 @@ func tiffExtractMetadataCreationTimestamp(in reader, fileStartOffset int64) stri
 	for ifdOffset != 0 {
 		// check for overflow, seek position +2 bytes IFD field count +4 bytes next IFD offset:
 		if int64(ifdOffset)+6 >= in.Size() {
-			log.fatalityDo("IFD offset goes over file length: %d, %s", ifdOffset, in.Name())
+			Raise(in.Name(), "IFD offset goes over file length")
 		}
 
 		// seek the IFD:
 		_, err := in.Seek(fileStartOffset+int64(ifdOffset), 0)
-		log.fatalityCheck(err, "failed to seek IFD offset: %s, %v", in.Name(), err)
+		CatchFile(err, in.Name(), "failed to seek IFD offset")
 
 		var eo uint32
 		dateTagOffsets, eo = tiffAppendDateValueOffsetsFromIFD(in, bo, dateTagOffsets)
 		if eo != 0 {
 			if exifOffset != 0 && eo != exifOffset {
-				log.fatalityDo("found multiple Exif offsets inside IFD offset %d: %d, %d", ifdOffset, exifOffset, eo)
+				Raise(in.Name(), "found multiple Exif offsets inside IFD offset")
 			}
 			exifOffset = eo
 		}
@@ -145,10 +145,10 @@ func tiffExtractMetadataCreationTimestamp(in reader, fileStartOffset int64) stri
 		}
 
 		err = binary.Read(in, bo, &ifdOffset)
-		log.fatalityCheck(err, "failed to read next IFD offeset: %s, %v", in.Name(), err)
+		CatchFile(err, in.Name(), "failed to read next IFD offeset")
 
 		if ifdOffset == ifdOffsetPrev {
-			log.fatalityDo("recursive IFD is not supported: %s", in.Name())
+			Raise(in.Name(), "recursive IFD is not supported")
 		}
 		// if EXIF offset matches next offset then skip separate EXIF reading:
 		if ifdOffset == exifOffset {
@@ -160,10 +160,10 @@ func tiffExtractMetadataCreationTimestamp(in reader, fileStartOffset int64) stri
 	for exifOffset != 0 {
 		// check for overflow, seek position +2 bytes IFD field count:
 		if int64(exifOffset)+2 >= in.Size() {
-			log.fatalityDo("Exif offset goes over file length: %d, %s", exifOffset, in.Name())
+			Raise(in.Name(), "Exif offset goes over file length")
 		}
 		_, err = in.Seek(fileStartOffset+int64(exifOffset), 0)
-		log.fatalityCheck(err, "failed to seek EXIF offset: %s, %v", in.Name(), err)
+		CatchFile(err, in.Name(), "failed to seek EXIF offset")
 		var exifOffsetPrev = exifOffset
 		dateTagOffsets, exifOffset = tiffAppendDateValueOffsetsFromIFD(in, bo, dateTagOffsets)
 		// protection from recursive offsets:
@@ -173,7 +173,7 @@ func tiffExtractMetadataCreationTimestamp(in reader, fileStartOffset int64) stri
 	}
 
 	if len(dateTagOffsets) == 0 {
-		log.fatalityDo("no date tags found in file: %s", in.Name())
+		Raise(in.Name(), "no date tags found")
 	}
 	// sort to read from closest tag:
 	sort.Slice(dateTagOffsets, func(i, j int) bool {
@@ -188,12 +188,12 @@ func tiffExtractMetadataCreationTimestamp(in reader, fileStartOffset int64) stri
 	for _, tagOffset := range dateTagOffsets {
 		// check for overflow, seek position +20 bytes expected field length:
 		if int64(tagOffset)+20 >= in.Size() {
-			log.fatalityDo("Date value offset goes over file length: %d, %s", tagOffset, in.Name())
+			Raise(in.Name(), "Date value offset goes over file length")
 		}
 		_, err = in.Seek(fileStartOffset+int64(tagOffset), 0)
-		log.fatalityCheck(err, "failed seeking date tag value: %s, %v", in.Name(), err)
+		CatchFile(err, in.Name(), "failed seeking date tag value")
 		_, err = in.Read(buffer)
-		log.fatalityCheck(err, "failed to read date tag value: %s, %v", in.Name(), err)
+		CatchFile(err, in.Name(), "failed to read date tag value")
 		if len(earliestDate) == 0 {
 			earliestDate = string(buffer)
 		} else {
@@ -209,7 +209,7 @@ func tiffExtractMetadataCreationTimestamp(in reader, fileStartOffset int64) stri
 		// bug in Samsung S9 camera, panorama photo has different date format:
 		parsed2, parseError2 := time.Parse("2006-01-02 15:04:05", earliestDate)
 		if parseError2 != nil {
-			log.fatalityDo("failed to parse exif date: %s\n\t%v\n\t%v")
+			RaiseFmtFile(in.Name(), "failed to parse exif date: %s, %v, %v", earliestDate, parseError, parseError2)
 		}
 		parsed = parsed2
 	}

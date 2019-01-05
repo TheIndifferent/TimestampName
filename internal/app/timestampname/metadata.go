@@ -15,20 +15,17 @@ type fileMetadata struct {
 func extractMetadataCreationTimestamp(file inputFile) string {
 
 	openFile, openErr := os.Open(file.name)
-	log.fatalityCheck(openErr, "failed to open the file: %s, %v", file.name, openErr)
+	CatchFile(openErr, file.name, "failed to open")
 	defer func() {
 		closeErr := openFile.Close()
-		log.fatalityCheck(closeErr, "failed to close the file: %s, %v", file.name, closeErr)
+		CatchFile(closeErr, file.name, "failed to close")
 	}()
 
 	var in = newFileReader(openFile, file.name)
-	fileStat, err := openFile.Stat()
-	log.fatalityCheck(err, "failed to stat the file: %s, %v", file.name, err)
-	var fileSize = uint32(fileStat.Size())
 
 	switch file.ext {
 	case ".mp4":
-		return mp4ExtractMetadataCreationTimestamp(file, openFile, fileSize)
+		return mp4ExtractMetadataCreationTimestamp(in)
 	case ".dng":
 		return tiffExtractMetadataCreationTimestamp(in, 0)
 	case ".nef":
@@ -40,7 +37,7 @@ func extractMetadataCreationTimestamp(file inputFile) string {
 	case ".cr3":
 		return cr3ExtractMetadataCreationTimestamp(in)
 	default:
-		log.fatalityDo("Unsupported file format: %s", file.ext)
+		Raise(file.name, "unsupported file format")
 		return ""
 	}
 }

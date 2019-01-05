@@ -5,6 +5,7 @@ package timestampname
 
 import (
 	"flag"
+	"fmt"
 	"os"
 )
 
@@ -24,6 +25,7 @@ func parseCommandLineArguments() commandLineArguments {
 	flag.BoolVar(&cmdArgs.noPrefix, "noprefix", false, "no counter prefix")
 	flag.BoolVar(&cmdArgs.debugOutput, "debug", false, "debug output")
 	flag.Parse()
+	debug("command line arguments: %v", cmdArgs)
 	return cmdArgs
 }
 
@@ -31,34 +33,54 @@ func parseCommandLineArguments() commandLineArguments {
 // END BEFORE INITIALIZATION
 //
 
-var log logger
-var workDir string
+var (
+	cmdArgs commandLineArguments
+	workDir string
+)
+
+//
+// LOGGING
+//
+
+func debug(format string, a ...interface{}) {
+	if cmdArgs.debugOutput {
+		fmt.Fprintf(os.Stdout, "\033[32m"+format+"\033[0m\n", a...)
+	}
+}
+
+func info(format string, a ...interface{}) {
+	fmt.Fprintf(os.Stdout, format, a...)
+}
+
+//
+// END LOGGING
+//
 
 func processFiles(files []inputFile) []fileMetadata {
 	var total = len(files)
 	var output = make([]fileMetadata, total)
 	for index, file := range files {
-		log.info("\rProcessing files: %d/%d...", index+1, total)
+		info("\rProcessing files: %d/%d...", index+1, total)
 		output[index] = fileMetadataCreationTimestamp(file)
 	}
-	log.info(" done.\n")
+	info(" done.\n")
 	return output
 }
 
 func verifyOperations(operations []renameOperation, longestSourceName int) {
 	duplicatesMap := make(map[string]string)
 	for _, operation := range operations {
-		log.info("    %[3]*[1]s    =>    %[2]s\n", operation.from, operation.to, longestSourceName)
+		info("    %[3]*[1]s    =>    %[2]s\n", operation.from, operation.to, longestSourceName)
 		// check for target name duplicates:
 		if _, existsInMap := duplicatesMap[operation.to]; existsInMap {
-			log.fatalityDo("target file name duplicate: %s", operation.to)
+			Raise(operation.to, "duplicate rename")
 		} else {
 			duplicatesMap[operation.to] = operation.to
 		}
 		// check for renaming duplicates:
 		if operation.from != operation.to {
 			if _, existsInDir := os.Stat(operation.to); existsInDir == nil {
-				log.fatalityDo("target file exists on the file system: %s", operation.to)
+				Raise(operation.to, "exists on file system")
 			}
 		}
 	}
@@ -66,36 +88,42 @@ func verifyOperations(operations []renameOperation, longestSourceName int) {
 
 func executeOperations(operations []renameOperation, dryRun bool) {
 	for index, operation := range operations {
-		log.info("\rRenaming files: %d/%d", index+1, len(operations))
+		info("\rRenaming files: %d/%d", index+1, len(operations))
 		if !dryRun {
 			renameErr := os.Rename(operation.from, operation.to)
-			log.fatalityCheck(renameErr, "failed to rename file: %s => %s, %v", operation.from, operation.to, renameErr)
+			CatchFile(renameErr, operation.from, "rename")
 			chmodErr := os.Chmod(operation.to, 0444)
-			log.fatalityCheck(chmodErr, "failed to change permissions for file: %s, %v", operation.to, chmodErr)
+			CatchFile(chmodErr, operation.from, "chmod")
 		}
 	}
-	log.info(" done.\n")
+	info(" done.\n")
 }
 
 func Exec() {
-	var cmdArgs = parseCommandLineArguments()
-	log = newLog(cmdArgs.debugOutput)
 
-	log.info("Scanning for files... ")
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Fprintf(os.Stderr, "\n\033[31m%v\033[0m\n", r)
+		}
+	}()
+
+	cmdArgs = parseCommandLineArguments()
+
+	info("Scanning for files... ")
 	var err error
 	workDir, err = os.Getwd()
-	log.fatalityCheck(err, "failed to get current working directory: %v", err)
+	Catch(err, "failed to get current working directory")
 	var inputFiles = listFiles(workDir)
-	log.info("%d supported files found.\n", len(inputFiles))
+	info("%d supported files found.\n", len(inputFiles))
 
 	metadatas := processFiles(inputFiles)
-	log.info("Preparing rename operations...")
+	info("Preparing rename operations...")
 	operations, longestSourceName := prepareRenameOperations(metadatas, cmdArgs.noPrefix)
-	log.info(" done.\n")
+	info(" done.\n")
 
-	log.info("Verifying:\n")
+	info("Verifying:\n")
 	verifyOperations(operations, longestSourceName)
-	log.info("done.\n")
+	info("done.\n")
 	executeOperations(operations, cmdArgs.dryRun)
-	log.info("\nFinished.\n")
+	info("\nFinished.\n")
 }

@@ -32,7 +32,7 @@ func targetFileNameFormat(numberOfFiles int, noPrefix bool) string {
 	if numberOfFiles < 100000 {
 		return "%05d-%s%s"
 	}
-	log.fatalityDo("too many files: %d", numberOfFiles)
+	RaiseFmt("too many files: %d", numberOfFiles)
 	return ""
 }
 
@@ -42,7 +42,7 @@ func prepareRenameOperations(files []fileMetadata, noPrefix bool) ([]renameOpera
 		b := files[j]
 		if a.metadataCreationTimestamp == b.metadataCreationTimestamp {
 			if a.name == b.name {
-				log.fatalityDo("file encountered twice: %s", a.name)
+				Raise(a.name, "encountered twice")
 			}
 			// workaround for Android way of dealing with same-second shots:
 			// 20180430_184327.jpg
