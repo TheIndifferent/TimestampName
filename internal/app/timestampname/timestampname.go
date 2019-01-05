@@ -66,7 +66,7 @@ func verifyOperations(operations []renameOperation, longestSourceName int) {
 
 func executeOperations(operations []renameOperation, dryRun bool) {
 	for index, operation := range operations {
-		log.info("\rRenaming files: %d/%d", index, len(operations))
+		log.info("\rRenaming files: %d/%d", index+1, len(operations))
 		if !dryRun {
 			renameErr := os.Rename(operation.from, operation.to)
 			log.fatalityCheck(renameErr, "failed to rename file: %s => %s, %v", operation.from, operation.to, renameErr)

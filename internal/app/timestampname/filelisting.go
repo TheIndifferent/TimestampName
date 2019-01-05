@@ -21,7 +21,7 @@ func createSupportedFilesMap() map[string]bool {
 	sf[".jpg"] = true
 	sf[".jpeg"] = true
 	sf[".mp4"] = true
-	// sf[".cr3"] = true
+	sf[".cr3"] = true
 	return sf
 }
 

@@ -21,6 +21,7 @@ func extractMetadataCreationTimestamp(file inputFile) string {
 		log.fatalityCheck(closeErr, "failed to close the file: %s, %v", file.name, closeErr)
 	}()
 
+	var in = newFileReader(openFile, file.name)
 	fileStat, err := openFile.Stat()
 	log.fatalityCheck(err, "failed to stat the file: %s, %v", file.name, err)
 	var fileSize = uint32(fileStat.Size())
@@ -29,13 +30,15 @@ func extractMetadataCreationTimestamp(file inputFile) string {
 	case ".mp4":
 		return mp4ExtractMetadataCreationTimestamp(file, openFile, fileSize)
 	case ".dng":
-		return tiffExtractMetadataCreationTimestamp(openFile, file.name, fileSize, 0)
+		return tiffExtractMetadataCreationTimestamp(in, 0)
 	case ".nef":
-		return tiffExtractMetadataCreationTimestamp(openFile, file.name, fileSize, 0)
+		return tiffExtractMetadataCreationTimestamp(in, 0)
 	case ".jpg":
-		return jpegExtractMetadataCreationTimestamp(file, openFile)
+		return jpegExtractMetadataCreationTimestamp(in)
 	case ".jpeg":
-		return jpegExtractMetadataCreationTimestamp(file, openFile)
+		return jpegExtractMetadataCreationTimestamp(in)
+	case ".cr3":
+		return cr3ExtractMetadataCreationTimestamp(in)
 	default:
 		log.fatalityDo("Unsupported file format: %s", file.ext)
 		return ""

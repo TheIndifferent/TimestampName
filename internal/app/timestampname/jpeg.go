@@ -5,7 +5,6 @@ package timestampname
 
 import (
 	"encoding/binary"
-	"os"
 )
 
 // following resources were used to construct this parser:
@@ -23,28 +22,28 @@ var (
 	exifHeaderExpected = binary.BigEndian.Uint32([]byte("Exif"))
 )
 
-func jpegExtractMetadataCreationTimestamp(fileInfo inputFile, file *os.File) string {
+func jpegExtractMetadataCreationTimestamp(in reader) string {
 	// checking JPEG SOI:
 	var jpegSoi uint16
-	binary.Read(file, binary.BigEndian, &jpegSoi)
+	binary.Read(in, binary.BigEndian, &jpegSoi)
 	if jpegSoi != jpegSoiExpected {
-		log.fatalityDo("unexpected header for file: %s", fileInfo.name)
+		log.fatalityDo("unexpected header for file: %s", in.Name())
 	}
 	// scrolling through fields until we find APP1:
 	var offset int64 = 2 // 2 bytes SOI
 	for {
 		var fieldMarker uint16
-		binary.Read(file, binary.BigEndian, &fieldMarker)
+		binary.Read(in, binary.BigEndian, &fieldMarker)
 		var fieldLength uint16
-		binary.Read(file, binary.BigEndian, &fieldLength)
+		binary.Read(in, binary.BigEndian, &fieldLength)
 		if fieldMarker == jpegApp1 {
 			// APP1 marker found, checking Exif header:
 			var exifHeader uint32
 			var exifHeaderSuffix uint16
-			binary.Read(file, binary.BigEndian, &exifHeader)
-			binary.Read(file, binary.BigEndian, &exifHeaderSuffix)
+			binary.Read(in, binary.BigEndian, &exifHeader)
+			binary.Read(in, binary.BigEndian, &exifHeaderSuffix)
 			if exifHeader != exifHeaderExpected || exifHeaderSuffix != exifHeaderSuffixExpected {
-				log.fatalityDo("JPEG APP1 field does not have valid Exif header: %s", fileInfo.name)
+				log.fatalityDo("JPEG APP1 field does not have valid Exif header: %s", in.Name())
 			}
 			// body is a valid TIFF,
 			// offset increments:
@@ -56,11 +55,11 @@ func jpegExtractMetadataCreationTimestamp(fileInfo inputFile, file *os.File) str
 			//   -2 field length
 			//   -4 exif header
 			//   -2 exif header suffix
-			return tiffExtractMetadataCreationTimestamp(file, fileInfo.name, uint32(fieldLength)-8, offset+10)
+			return tiffExtractMetadataCreationTimestamp(newReader(in, offset+10, int64(fieldLength)-8), 0)
 		} else {
 			// length includes the length itself:
 			var scrollDistance = fieldLength - 2
-			file.Seek(int64(scrollDistance), 1)
+			in.Seek(int64(scrollDistance), 1)
 		}
 		offset += 2                  // field marker
 		offset += int64(fieldLength) // field lenght includes itself
