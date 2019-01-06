@@ -34,7 +34,7 @@ func mp4ExtractMetadataCreationTimestamp(in reader) string {
 		err = binary.Read(mvhdIn, binary.BigEndian, &modificationTime)
 		CatchFile(err, in.Name(), "modification time 64")
 		var t = int64(modificationTime - uint64(quicktimeEpochOffset))
-		return time.Unix(t, 0).UTC().Format("20060102-150405")
+		return time.Unix(t, 0).In(cmdArgs.timezone).Format("20060102-150405")
 	} else {
 		var creationTime uint32
 		var modificationTime uint32
@@ -43,6 +43,6 @@ func mp4ExtractMetadataCreationTimestamp(in reader) string {
 		err = binary.Read(mvhdIn, binary.BigEndian, &modificationTime)
 		CatchFile(err, in.Name(), "modification time 32")
 		var t = int64(modificationTime - quicktimeEpochOffset)
-		return time.Unix(t, 0).UTC().Format("20060102-150405")
+		return time.Unix(t, 0).In(cmdArgs.timezone).Format("20060102-150405")
 	}
 }

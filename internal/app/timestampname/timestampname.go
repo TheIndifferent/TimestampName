@@ -7,6 +7,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
+	"time"
 )
 
 //
@@ -17,6 +19,7 @@ type commandLineArguments struct {
 	dryRun      bool
 	noPrefix    bool
 	debugOutput bool
+	timezone    *time.Location
 }
 
 func parseCommandLineArguments() commandLineArguments {
@@ -24,7 +27,42 @@ func parseCommandLineArguments() commandLineArguments {
 	flag.BoolVar(&cmdArgs.dryRun, "dry", false, "dry run")
 	flag.BoolVar(&cmdArgs.noPrefix, "noprefix", false, "no counter prefix")
 	flag.BoolVar(&cmdArgs.debugOutput, "debug", false, "debug output")
+	var zoneOffsetString string
+	flag.StringVar(&zoneOffsetString, "timezone", "0", "time zone where the video was taken. May be signed, single digit or 4 digits.")
 	flag.Parse()
+
+	// parsing zone offset:
+	switch len(zoneOffsetString) {
+	case 1:
+		zoneOffsetString = "+" + zoneOffsetString
+		fallthrough
+	case 2:
+		if zoneOffsetString[0] != '-' && zoneOffsetString[0] != '+' {
+			RaiseFmt("invalid time zone offset: %s", zoneOffsetString)
+		}
+		hours, err := strconv.Atoi(zoneOffsetString)
+		Catch(err, "invalid time zone offset")
+		cmdArgs.timezone = time.FixedZone("UTC"+zoneOffsetString, hours*60*60)
+	case 4:
+		hours, err := strconv.Atoi(zoneOffsetString[0:2])
+		Catch(err, "invalid time zone offset")
+		minutes, err := strconv.Atoi(zoneOffsetString[2:])
+		cmdArgs.timezone = time.FixedZone("UTC+"+zoneOffsetString, hours*60*60+minutes*60)
+	case 5:
+		if zoneOffsetString[0] != '-' && zoneOffsetString[0] != '+' {
+			RaiseFmt("invalid time zone offset: %s", zoneOffsetString)
+		}
+		hours, err := strconv.Atoi(zoneOffsetString[0:3])
+		Catch(err, "invalid time zone offset")
+		minutes, err := strconv.Atoi(zoneOffsetString[3:])
+		if hours < 0 {
+			minutes = -minutes
+		}
+		cmdArgs.timezone = time.FixedZone("UTC+"+zoneOffsetString, hours*60*60+minutes*60)
+	default:
+		RaiseFmt("invalid time zone offset: %s", zoneOffsetString)
+	}
+
 	debug("command line arguments: %v", cmdArgs)
 	return cmdArgs
 }
