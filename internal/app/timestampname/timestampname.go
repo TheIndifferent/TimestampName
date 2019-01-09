@@ -142,6 +142,7 @@ func Exec() {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Fprintf(os.Stderr, "\n\033[31m%v\033[0m\n", r)
+			os.Exit(1)
 		}
 	}()
 

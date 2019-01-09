@@ -10,13 +10,13 @@ func cr3ExtractMetadataCreationTimestamp(in reader) string {
 
 	cmt1, err := quicktimeSearchBox(canonBox, "CMT1")
 	CatchFile(err, in.Name(), "failed to find CMT1 box")
-	var cmt1CreationTime = tiffExtractMetadataCreationTimestamp(cmt1, 0)
+	var cmt1CreationTime = tiffExtractMetadataCreationTimestamp(cmt1)
 
 	_, err = canonBox.Seek(0, 0)
 	CatchFile(err, in.Name(), "failed to rewind")
 	cmt2, err := quicktimeSearchBox(canonBox, "CMT2")
 	CatchFile(err, in.Name(), "failed to find CMT2 box")
-	var cmt2CreationTime = tiffExtractMetadataCreationTimestamp(cmt2, 0)
+	var cmt2CreationTime = tiffExtractMetadataCreationTimestamp(cmt2)
 	if cmt1CreationTime < cmt2CreationTime {
 		return cmt1CreationTime
 	}

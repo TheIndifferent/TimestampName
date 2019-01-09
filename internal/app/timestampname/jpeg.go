@@ -55,7 +55,7 @@ func jpegExtractMetadataCreationTimestamp(in reader) string {
 			//   -2 field length
 			//   -4 exif header
 			//   -2 exif header suffix
-			return tiffExtractMetadataCreationTimestamp(newReader(in, offset+10, int64(fieldLength)-8), 0)
+			return tiffExtractMetadataCreationTimestamp(newReader(in, offset+10, int64(fieldLength)-8))
 		} else {
 			// length includes the length itself:
 			var scrollDistance = fieldLength - 2

@@ -4,7 +4,7 @@
 package main
 
 import (
-	tn "github.com/TheIndifferent/timestampname/internal/app/timestampname"
+	tn "github.com/TheIndifferent/timestampname-go/internal/app/timestampname"
 )
 
 func main() {

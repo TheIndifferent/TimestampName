@@ -6,6 +6,7 @@ package timestampname
 import (
 	"io"
 	"os"
+	"reflect"
 )
 
 type reader interface {
@@ -32,5 +33,14 @@ func newFileReader(file *os.File, name string) reader {
 }
 
 func newReader(r reader, off int64, n int64) reader {
+	if cmdArgs.debugOutput {
+		var reflectedReader = reflect.ValueOf(r).Elem()
+		debug("creating reader: from: {base:%d, off:%d, limit:%d}, new offset: %d, new size: %d",
+			reflectedReader.FieldByName("base"),
+			reflectedReader.FieldByName("off"),
+			reflectedReader.FieldByName("limit"),
+			off,
+			n)
+	}
 	return &fileSectionReader{io.NewSectionReader(r, off, n), r.Name()}
 }

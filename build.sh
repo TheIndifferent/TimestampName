@@ -1,2 +1,2 @@
 #!/bin/sh
-go build -o TimestampName ./...
+go build -o TimestampName cmd/TimestampName/main.go

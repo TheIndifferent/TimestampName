@@ -25,6 +25,8 @@ func _quicktimeSearchBox(in reader, matchName func(string) bool, matchUuid func(
 		CatchFile(err, in.Name(), "failed to read box length")
 		_, err = io.ReadFull(in, boxType)
 		CatchFile(err, in.Name(), "failed to read box type")
+		var boxTypeString = string(boxType)
+		debug("quicktime encountered box '%s' at offset %d", boxTypeString, offset)
 		// checking for large box:
 		if boxLength == 1 {
 			var boxLargeLength uint64
@@ -43,8 +45,9 @@ func _quicktimeSearchBox(in reader, matchName func(string) bool, matchUuid func(
 			boxBodyLength = int64(boxLength - 8)
 			offset += 8
 		}
-		if matchName(string(boxType)) {
+		if matchName(boxTypeString) {
 			if matchUuid == nil {
+				debug("quicktime box found at offset: %d, with length: %d", offset, boxBodyLength)
 				return newReader(in, offset, boxBodyLength)
 			}
 			var uuid = make([]byte, 16)
@@ -54,6 +57,7 @@ func _quicktimeSearchBox(in reader, matchName func(string) bool, matchUuid func(
 			boxBodyLength -= 16
 			offset += 16
 			if matchUuid(hex.EncodeToString(uuid)) {
+				debug("quicktime box found at offset: %d, with length: %d", offset, boxBodyLength)
 				return newReader(in, offset, boxBodyLength)
 			}
 		}
@@ -69,6 +73,7 @@ func _quicktimeSearchBox(in reader, matchName func(string) bool, matchUuid func(
 }
 
 func quicktimeSearchUuidBox(in reader, boxUuidNeeded string) (reader, error) {
+	debug("quicktime searching for UUID box: %s", boxUuidNeeded)
 	var box = _quicktimeSearchBox(
 		in,
 		func(name string) bool {
@@ -84,6 +89,7 @@ func quicktimeSearchUuidBox(in reader, boxUuidNeeded string) (reader, error) {
 }
 
 func quicktimeSearchBox(in reader, boxTypeNeeded string) (reader, error) {
+	debug("quicktime searching for box: %s", boxTypeNeeded)
 	var box = _quicktimeSearchBox(
 		in,
 		func(name string) bool {

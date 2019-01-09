@@ -27,9 +27,9 @@ func extractMetadataCreationTimestamp(file inputFile) string {
 	case ".mp4":
 		return mp4ExtractMetadataCreationTimestamp(in)
 	case ".dng":
-		return tiffExtractMetadataCreationTimestamp(in, 0)
+		return tiffExtractMetadataCreationTimestamp(in)
 	case ".nef":
-		return tiffExtractMetadataCreationTimestamp(in, 0)
+		return tiffExtractMetadataCreationTimestamp(in)
 	case ".jpg":
 		return jpegExtractMetadataCreationTimestamp(in)
 	case ".jpeg":
