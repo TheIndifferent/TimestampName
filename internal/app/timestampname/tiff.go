@@ -52,6 +52,7 @@ func tiffExtractMetadataCreationTimestamp(in reader) string {
 	default:
 		RaiseFmtFile(in.Name(), "invalid TIFF file header: %d", tiffEndianess)
 	}
+	debug("TIFF endianess: %v", bo)
 
 	// Bytes 2-3 An arbitrary but carefully chosen number (42)
 	// that further identifies the file as a TIFF file.
@@ -136,6 +137,7 @@ func tiffExtractMetadataCreationTimestamp(in reader) string {
 				var fields uint16
 				err := binary.Read(in, bo, &fields)
 				CatchFile(err, in.Name(), "failed to read number of IFD entries")
+				debug("TIFF fields: %d", fields)
 
 				for t := 0; t < int(fields); t++ {
 					// Bytes 0-1 The Tag that identifies the field
@@ -157,6 +159,8 @@ func tiffExtractMetadataCreationTimestamp(in reader) string {
 					var fieldValueOffset uint32
 					err = binary.Read(in, bo, &fieldValueOffset)
 					CatchFile(err, in.Name(), "failed to read IFD value offset")
+
+					debug("TIFF field: tag=%d, type=%d, count=%d, offset=%d", fieldTag, fieldType, fieldCount, fieldValueOffset)
 
 					// 0x0132: DateTime
 					// 0x9003: DateTimeOriginal

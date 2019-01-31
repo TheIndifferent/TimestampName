@@ -32,6 +32,7 @@ func _quicktimeSearchBox(in reader, matchName func(string) bool, matchUuid func(
 			var boxLargeLength uint64
 			err = binary.Read(in, binary.BigEndian, &boxLargeLength)
 			CatchFile(err, in.Name(), "failed to read box large length")
+			debug("quicktime large box length: %d", boxLargeLength)
 			// box lenght includes header, have to make adjustments:
 			// 4 bytes for box length
 			// 4 bytes for box type
